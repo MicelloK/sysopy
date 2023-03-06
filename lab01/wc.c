@@ -4,8 +4,6 @@
 
 #include "wc.h"
 
-#define TMP_BUFFER_SIZE 1024
-
 FilesInfo init(int size) {
     char** data = calloc(size, sizeof(char*));
     struct FilesInfo new_array = {data, 0, size};
@@ -36,7 +34,7 @@ void count(FilesInfo* arr, char* file) {
         arr->current_size++;
 
         // del tmp file
-        remove("/tmp/tmp_file");  //nie dziala
+        remove("/tmp/tmp_file");  //nie dziala chyba
     }
 }
 
@@ -44,6 +42,7 @@ char* show(FilesInfo arr, int index) {
     if (index >= 0 && index < arr.current_size) {
         return arr.data[index];
     }
+    return NULL;
 }
 
 void delete_idx(FilesInfo* arr, int index) {
@@ -63,31 +62,4 @@ void destroy(FilesInfo* arr) {
         free(arr->data[i]);
     }
     free(arr->data);
-}
-
-
-int main() {
-    printf("start\n");
-    FilesInfo test = init(15);
-
-    // printf("%d\n", test.current_size);
-    // printf("%d\n", test.max_size);
-
-    // for (int i = 0; i < test.max_size; i++) {
-    //     printf("%s ", test.data[i]);
-    // }
-    // printf("\n");
-
-    count(&test, "wc.c");
-    count(&test, "wc.h");
-    delete_idx(&test, 0);
-
-    int index = 0;
-    while(index < test.current_size) {
-        printf("%s\n", show(test, index));
-        index++;
-    }
-
-    destroy(&test);
-    printf("%s", &test);
 }
