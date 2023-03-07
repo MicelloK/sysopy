@@ -4,11 +4,10 @@ LIB_NAME = wc
 LIB_SRC = wc.c
 STATIC_LIB = lib$(LIB_NAME).a
 SHARED_LIB = lib$(LIB_NAME).so
-# TEST_SRC = test.c
 
 .PHONY: all clean
 
-all: $(STATIC_LIB) $(SHARED_LIB) test
+all: $(STATIC_LIB) $(SHARED_LIB)
 
 $(STATIC_LIB): $(LIB_SRC)
 	$(CC) $(CFLAGS) -c $^
@@ -18,8 +17,5 @@ $(STATIC_LIB): $(LIB_SRC)
 $(SHARED_LIB): $(LIB_SRC)
 	$(CC) $(CFLAGS) -fPIC -shared $^ -o $@
 
-# test: $(TEST_SRC)
-# 	$(CC) $(CFLAGS) -o $@ $^ -L. -l$(LIB_NAME)
-
-# clean:
-# 	rm -f $(STATIC_LIB) $(SHARED_LIB) test
+clean:
+	rm -f $(STATIC_LIB) $(SHARED_LIB)

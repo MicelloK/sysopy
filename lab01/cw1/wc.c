@@ -7,6 +7,7 @@
 FilesInfo init(int size) {
     char** data = calloc(size, sizeof(char*));
     struct FilesInfo new_array = {data, 0, size};
+    printf("[%d] has been initialized!\n", size);
     return new_array;
 }
 
@@ -20,7 +21,7 @@ void count(FilesInfo* arr, char* file) {
         // file read
         FILE* tmp_file = fopen("/tmp/tmp_file", "r");
         if (tmp_file == NULL) {
-            printf("can not open tmp file!");
+            printf("can not open tmp file!\n");
         }
 
         // data cpy
@@ -35,6 +36,8 @@ void count(FilesInfo* arr, char* file) {
 
         // del tmp file
         remove("/tmp/tmp_file");  //nie dziala chyba
+
+        printf("wc %s\n", file);
     }
 }
 
@@ -55,6 +58,8 @@ void delete_idx(FilesInfo* arr, int index) {
         arr->data[index] = NULL;
         arr->current_size--;
     }
+
+    printf("index %d has been deleted!\n", index);
 }
 
 void destroy(FilesInfo* arr) {
@@ -62,4 +67,6 @@ void destroy(FilesInfo* arr) {
         free(arr->data[i]);
     }
     free(arr->data);
+
+    printf("Array has been destroyed!\n");
 }
