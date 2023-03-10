@@ -1,0 +1,12 @@
+init 3
+count ../zad1/wc.c
+count ../zad1/wc.h
+count ../zad2/repl.c
+show 0
+show 1
+show 2
+delete 1
+delete 1
+delete 0
+destroy
+exit
