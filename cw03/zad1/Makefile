@@ -8,3 +8,4 @@ main:
 
 clean:
 	rm -f pid.o
+	
