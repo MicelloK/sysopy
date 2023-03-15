@@ -1,0 +1,8 @@
+CC
+\#include
+123
+aaaaaa
+kajak
+system
+error
+aubergine
