@@ -56,12 +56,17 @@ void block_reverse(FILE* input_file, FILE* output_file) {
 	fseek(output_file, 0, SEEK_SET);
 
 	char buffer[BUFFER_SIZE];
-	for(int i = file_size - 1; i >= 0; i -= BUFFER_SIZE) {
+	int to_read = BUFFER_SIZE;
+	for(int i = file_size - 1; i > -BUFFER_SIZE; i -= BUFFER_SIZE) {
+		if (i < 0) {
+			to_read = i + BUFFER_SIZE;
+			i = 0;
+		}
 		fseek(input_file, i, SEEK_SET);
-		size_t read_count = fread(buffer, sizeof(char), BUFFER_SIZE, input_file);
-		char rev_buffer[BUFFER_SIZE];
+		size_t read_count = fread(buffer, sizeof(char), to_read, input_file);
+		char rev_buffer[to_read];
 		for(size_t j = 0; j < read_count; j++) {
-			rev_buffer[j] = buffer[read_count - 1 - i];
+			rev_buffer[j] = buffer[read_count - 1 - j];
 		}
 		fwrite(rev_buffer, sizeof(char), read_count, output_file);
 	}
