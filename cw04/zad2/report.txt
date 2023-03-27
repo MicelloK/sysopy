@@ -1,0 +1,41 @@
+>> SIGINFO <<
+PARENT:
+Signal number: 10
+PID: 58225
+UID: 1000
+Addr: 0x3e80000e371
+Code: 0
+CHILD:
+Signal number: 10
+PID: 58226
+UID: 1000
+Addr: 0x3e80000e372
+Code: 0
+>> SIGINFO <<
+PARENT:
+Signal number: 10
+PID: 58225
+UID: 1000
+Addr: 0x3e80000e371
+Code: 0
+CHILD:
+
+>> RESTART <<
+Start handling - call_id: 0, call_depth: 0
+End handling - call_id: 0, call_depth: 0
+Start handling - call_id: 1, call_depth: 0
+End handling - call_id: 1, call_depth: 0
+Start handling - call_id: 2, call_depth: 0
+End handling - call_id: 2, call_depth: 0
+Start handling - call_id: 3, call_depth: 0
+End handling - call_id: 3, call_depth: 0
+
+>> NODEFER <<
+Start handling - call_id: 0, call_depth: 0
+Start handling - call_id: 1, call_depth: 1
+Start handling - call_id: 2, call_depth: 2
+Start handling - call_id: 3, call_depth: 3
+End handling - call_id: 3, call_depth: 3
+End handling - call_id: 3, call_depth: 2
+End handling - call_id: 3, call_depth: 1
+End handling - call_id: 3, call_depth: 0
