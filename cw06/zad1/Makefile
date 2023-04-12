@@ -1,10 +1,10 @@
 CC = gcc -Wall
 
-all: clear main
+all: clean main
 
 main:
 	$(CC) server.c -o server
 	$(CC) client.c -o client
 
-clear:
+clean:
 	rm -f server client

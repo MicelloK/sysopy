@@ -15,7 +15,7 @@ client clients[MAX_CLIENTS];
 void signal_handler(int sig) {
 	if (server_q != -1) {
 		msg_buff *msg = malloc(sizeof(msg_buff));
-		msg->mtype = MT_STOP;
+		msg->mtype = STOP;
 		for (int i = 0; i < MAX_CLIENTS; i++) {
 			if (clients[i].key != -1) {
 				int client_qid = msgget(clients[i].key, 0);
@@ -29,9 +29,8 @@ void signal_handler(int sig) {
 }
 
 void rcv_init(msg_buff *msg) {
-	printf("awdsf");
 	int client_idx = 0; 
-	while (client_idx < MAX_CLIENTS && clients[client_idx].key == -1) {
+	while (client_idx < MAX_CLIENTS && clients[client_idx].key != -1) {
 		client_idx++;
 	}
 
@@ -127,29 +126,29 @@ int main() {
 
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	while (1) {
-		msgrcv(server_q, msg, sizeof(msg_buff) - sizeof(long), 0, 0);
+		msgrcv(server_q, msg, sizeof(msg_buff), -6, 0);
 
-		int type = msg->mtype;
+		// int type = msg->mtype;
 
-		switch(type) {
-			case MT_INIT:
+		switch(msg->mtype) {
+			case INIT:
 				rcv_init(msg);
 				break;
-			case MT_STOP:
+			case STOP:
 				rcv_stop(msg);
 				break;
-			case MT_LIST:
+			case LIST:
 				rcv_list(msg);
 				break;
-			case MT_2ALL:
+			case TALL:
 				rcv_2all(msg);
 				break;
-			case MT_2ONE:
+			case TONE:
 				rcv_2one(msg);
 				break;
 			default:
 				printf("Wrong msg type [%ld]\n", msg->mtype);
-				type = -1;
+				// type = -1;
 		}
 	}
 }

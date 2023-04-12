@@ -6,6 +6,8 @@
 #include <string.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <time.h>
+#include <errno.h>
 
 #include "lim.h"
 
@@ -17,27 +19,25 @@ int client_qid;
 
 void handle_init() {
 	msg_buff *msg = malloc(sizeof(msg_buff));
-	msg->mtype = MT_INIT;
+	msg->mtype = INIT;
 	msg->q_key = key;
 	msg->client_id = client_pid;
 
-	int test1 = msgsnd(server_q, msg, sizeof(msg_buff), 0);
-	int test2 = msgrcv(client_qid, msg, sizeof(msg_buff), 0, 0);
-	printf("%d | %d\n", test1, test2);
+	int sndtest = msgsnd(server_q, msg, sizeof(msg_buff), 0);
+	int rcvtest = msgrcv(client_qid, msg, sizeof(msg_buff), 0, 0);
 
 	client_idx = msg->client_id;
-	if (client_idx == -1) {
+	if (client_idx == -1 || sndtest == -1 || rcvtest == -1) {
 		printf("SERVER | Initialization fault!\n");
 	}
 	else {
 		printf("SERVER | Initialization was successful\n");
-		printf("%d\n", client_idx);
 	}
 }
 
 void handle_list() {
 	msg_buff *msg = malloc(sizeof(msg_buff));
-	msg->mtype = MT_LIST;
+	msg->mtype = LIST;
 	msg->client_id = client_idx;
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
@@ -48,7 +48,7 @@ void handle_list() {
 
 void handle_2all(char* message) {
 	msg_buff *msg = malloc(sizeof(msg_buff));
-	msg->mtype = MT_2ALL;
+	msg->mtype = TALL;
 	msg->client_id = client_idx;
 	strcpy(msg->content, message);
 
@@ -57,7 +57,7 @@ void handle_2all(char* message) {
 
 void handle_2one(char* message, int c_pid) {
 	msg_buff *msg = malloc(sizeof(msg_buff));
-	msg->mtype = MT_2ONE;
+	msg->mtype = TONE;
 	msg->client_id = client_idx;
 	msg->catcher_pid = c_pid;
 	strcpy(msg->content, message);
@@ -67,7 +67,7 @@ void handle_2one(char* message, int c_pid) {
 
 void handle_stop() {
 	msg_buff *msg = malloc(sizeof(msg_buff));
-	msg->mtype = MT_STOP;
+	msg->mtype = STOP;
 	msg->client_id = client_idx;
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
@@ -78,7 +78,11 @@ void handle_stop() {
 int main() {
 	srand(time(NULL));
 	key = ftok(getenv("HOME"), rand() % 255 + 1);
-	client_qid = msgget(key, 0);
+	client_qid = msgget(key, IPC_CREAT | 0666);
+	if (client_qid == -1) {
+		perror("msgget");
+		exit(1);
+	}
 	key_t server_key = ftok(getenv("HOME"), 1);
 	server_q = msgget(server_key, 0);
 	client_pid = getpid();
