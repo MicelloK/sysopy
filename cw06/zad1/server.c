@@ -50,16 +50,14 @@ void rcv_init(msg_buff *msg) {
 	printf("SERVER | New client: %d\n", clients[client_idx].id);
 }
 
+char tmp[MAX_MSG_LEN];
 void rcv_list(msg_buff *msg) {
 	int idx = msg->client_id;
-	strcpy(msg->content, "ACTIVE CLIENTS:\n"); 
 
 	for (int i = 0; i < MAX_CLIENTS; i++) {
 		if (clients[i].key != -1 && i != idx) {
-			char *tmp = malloc(MAX_MSG_LEN);
 			sprintf(tmp, "ID: %d\n", clients[i].id);
 			strcat(msg->content, tmp);
-			free(tmp);
 		}
 	}
 
@@ -69,9 +67,10 @@ void rcv_list(msg_buff *msg) {
 
 void rcv_2all(msg_buff *msg) {
 	int idx = msg->client_id;
+	msg->client_id = clients[idx].id; //pid
 	for (int i = 0; i < MAX_CLIENTS; i++) {
-		if (i != idx) {
-			int client_qid = msgget(clients[idx].key, 0);
+		if (i != idx && clients[i].key != -1) {
+			int client_qid = msgget(clients[i].key, 0);
 			msgsnd(client_qid, msg, sizeof(msg_buff), 0);
 		}
 	}
@@ -87,14 +86,16 @@ void rcv_2one(msg_buff *msg) {
 	if (i == MAX_CLIENTS) {
 		printf("Can not find [%d] user\n", catcher_pid);
 	}
-
-	int client_qid = msgget(clients[i].key, 0);
-	msgsnd(client_qid, msg, sizeof(msg_buff), 0);
+	else {
+		int client_qid = msgget(clients[i].key, 0);
+		msgsnd(client_qid, msg, sizeof(msg_buff), 0);
+	}
 }
 
 void rcv_stop(msg_buff *msg) {
 	int idx = msg->client_id;
 	int client_qid = msgget(clients[idx].key, 0);
+	printf("SERVER | Client [%d] left\n", clients[idx].id);
 	clients[idx].id = -1;
 	clients[idx].key = -1;
 	msgsnd(client_qid, msg, sizeof(msg_buff), 0);
@@ -127,8 +128,7 @@ int main() {
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	while (1) {
 		msgrcv(server_q, msg, sizeof(msg_buff), -6, 0);
-
-		// int type = msg->mtype;
+		printf("%ld | ", msg->mtype);
 
 		switch(msg->mtype) {
 			case INIT:
@@ -138,9 +138,11 @@ int main() {
 				rcv_stop(msg);
 				break;
 			case LIST:
+				printf("list\n");
 				rcv_list(msg);
 				break;
 			case TALL:
+				printf("tall\n");
 				rcv_2all(msg);
 				break;
 			case TONE:
@@ -148,7 +150,6 @@ int main() {
 				break;
 			default:
 				printf("Wrong msg type [%ld]\n", msg->mtype);
-				// type = -1;
 		}
 	}
 }

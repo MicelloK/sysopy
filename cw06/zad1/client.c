@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <errno.h>
+#include <poll.h>
 
 #include "lim.h"
 
@@ -16,6 +17,8 @@ int client_idx;
 int client_pid;
 int server_q;
 int client_qid;
+
+int waiting = 0;
 
 void handle_init() {
 	msg_buff *msg = malloc(sizeof(msg_buff));
@@ -42,7 +45,7 @@ void handle_list() {
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
 	msgrcv(client_qid, msg, sizeof(msg_buff), 0, 0);
-	printf(">>> SERVER MSG <<<\n");
+	printf(">>> ACTIVE CLIENTS <<<\n");
 	printf("%s", msg->content);
 }
 
@@ -75,7 +78,26 @@ void handle_stop() {
 	exit(EXIT_SUCCESS);
 }
 
+void handle_server_message() {
+	msg_buff *msg_rcv = malloc(sizeof(msg_buff));
+
+	while(msgrcv(client_qid, msg_rcv, sizeof(msg_buff), 0, IPC_NOWAIT) >= 0);
+
+	if (msg_rcv->mtype == STOP) {
+		printf("Recived stop message, leaving...\n");
+		handle_stop();
+	}
+	else if (msg_rcv->mtype == TALL || msg_rcv->mtype == TONE) {
+		printf("\n>>> MESSAGE FROM [%d]: \"%s\"\n",
+        	msg_rcv->client_id,
+        	msg_rcv->content);
+		waiting = 0;
+	}
+}
+
 int main() {
+	printf("PID: %d\n", getpid());
+
 	srand(time(NULL));
 	key = ftok(getenv("HOME"), rand() % 255 + 1);
 	client_qid = msgget(key, IPC_CREAT | 0666);
@@ -90,21 +112,40 @@ int main() {
 
 	signal(SIGINT, handle_stop);
 
+	struct pollfd fds[1];
+    fds[0].fd = STDIN_FILENO;
+    fds[0].events = POLLIN;
+
 	size_t len;
 	ssize_t read;
-	char* command = NULL;
+	char* line = NULL;
 
+	printf("AVAIABLE COMMANDS: [LIST|2ALL|2ONE|STOP]\n\n");
 	while (1) {
-		printf("AVAIABLE COMMANDS: [LIST|2ALL|2ONE|STOP]\n");
-		printf("> ");
+		handle_server_message();
 
-		read = getline(&command, &len, stdin);
-		command[read - 1] = '\0';
-
-		if (strcmp(command, "") == 0) {
+		if (!waiting) {
+			printf("> ");
+			fflush(stdout);
+			waiting = 1;
+		}
+		int ret = poll(fds, 1, 1000);
+		if (ret == 0) {
 			continue;
 		}
-		else if (strcmp(command, "INIT") == 0) {
+		else if (ret > 0 && fds[0].revents & POLLIN) {
+			read = getline(&line, &len, stdin);
+			line[read - 1] = '\0';
+			waiting = 0;
+		}
+
+		if (strcmp(line, "") == 0) {
+			continue;
+		}
+
+		char* command = strtok(line, " ");
+
+		if (strcmp(command, "INIT") == 0) {
 			handle_init();
 		}
 		else if (client_idx == -1) {
@@ -114,30 +155,20 @@ int main() {
 			handle_list();
 		}
 		else if (strcmp(command, "2ALL") == 0) {
-			char* message;
-			size_t msg_len;
-			ssize_t msg_read;
-
-			printf("Enter your message: ");
-			msg_read = getline(&message, &msg_len, stdin);
-			message[msg_read - 1] = '\0';
+			command = strtok(NULL, " ");
+			char* message = command;
 			handle_2all(message);
 			printf("SERVER | msg was sent\n");
 		}
 		else if (strcmp(command, "2ONE") == 0) {
-			char* message;
-			size_t msg_len;
-			ssize_t msg_read;
 			int c_pid;
-
-			printf("Enter recipient pid: ");
+			printf("Enter recipient pid:\n> ");
 			scanf("%d", &c_pid);
 
-			printf("Enter your message: ");
-			msg_read = getline(&message, &msg_len, stdin);
-			message[msg_read - 1] = '\0';
+			command = strtok(NULL, " ");
+			char* message = command;
 			handle_2one(message, c_pid);
-			printf("SERVER | msg was sent\n");
+			printf("SERVER | message was sent\n");
 		}
 		else if (strcmp(command, "STOP") == 0) {
 			handle_stop();
