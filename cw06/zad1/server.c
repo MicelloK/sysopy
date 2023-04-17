@@ -47,7 +47,12 @@ void rcv_init(msg_buff *msg) {
 	int client_qid = msgget(clients[client_idx].key, 0);
 	msgsnd(client_qid, msg, sizeof(msg_buff), 0);
 
-	printf("SERVER | New client: %d\n", clients[client_idx].id);
+	struct tm msg_time = msg->time_struct;
+	printf("SERVER | [%02d:%02d:%02d] | New client: %d\n", 
+		msg_time.tm_hour,
+		msg_time.tm_min,
+		msg_time.tm_sec,
+		clients[client_idx].id);
 }
 
 char tmp[MAX_MSG_LEN];
@@ -60,6 +65,14 @@ void rcv_list(msg_buff *msg) {
 			strcat(msg->content, tmp);
 		}
 	}
+
+	struct tm msg_time = msg->time_struct;
+	printf("[%d] | [%02d:%02d:%02d] | LIST\n", 
+		clients[idx].id,
+		msg_time.tm_hour,
+		msg_time.tm_min,
+		msg_time.tm_sec);
+
 
 	int client_qid = msgget(clients[idx].key, 0);
 	msgsnd(client_qid, msg, sizeof(msg_buff), 0);
@@ -74,6 +87,13 @@ void rcv_2all(msg_buff *msg) {
 			msgsnd(client_qid, msg, sizeof(msg_buff), 0);
 		}
 	}
+
+	struct tm msg_time = msg->time_struct;
+	printf("[%d] | [%02d:%02d:%02d] | 2ALL\n", 
+		clients[idx].id,
+		msg_time.tm_hour,
+		msg_time.tm_min,
+		msg_time.tm_sec);
 }
 
 void rcv_2one(msg_buff *msg) {
@@ -88,7 +108,16 @@ void rcv_2one(msg_buff *msg) {
 	}
 	else {
 		int client_qid = msgget(clients[i].key, 0);
+		msg->client_id = clients[msg->client_id].id;
 		msgsnd(client_qid, msg, sizeof(msg_buff), 0);
+
+		struct tm msg_time = msg->time_struct;
+		printf("[%d] | [%02d:%02d:%02d] | 2ONE: %d\n", 
+		msg->client_id,
+		msg_time.tm_hour,
+		msg_time.tm_min,
+		msg_time.tm_sec,
+		catcher_pid);
 	}
 }
 
@@ -128,7 +157,7 @@ int main() {
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	while (1) {
 		msgrcv(server_q, msg, sizeof(msg_buff), -6, 0);
-		printf("%ld | ", msg->mtype);
+		// printf("%ld | ", msg->mtype);
 
 		switch(msg->mtype) {
 			case INIT:
@@ -138,11 +167,9 @@ int main() {
 				rcv_stop(msg);
 				break;
 			case LIST:
-				printf("list\n");
 				rcv_list(msg);
 				break;
 			case TALL:
-				printf("tall\n");
 				rcv_2all(msg);
 				break;
 			case TONE:

@@ -21,10 +21,12 @@ int client_qid;
 int waiting = 0;
 
 void handle_init() {
+	time_t msg_time = time(NULL);
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	msg->mtype = INIT;
 	msg->q_key = key;
 	msg->client_id = client_pid;
+	msg->time_struct = *localtime(&msg_time);
 
 	int sndtest = msgsnd(server_q, msg, sizeof(msg_buff), 0);
 	int rcvtest = msgrcv(client_qid, msg, sizeof(msg_buff), 0, 0);
@@ -39,9 +41,11 @@ void handle_init() {
 }
 
 void handle_list() {
+	time_t msg_time = time(NULL);
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	msg->mtype = LIST;
 	msg->client_id = client_idx;
+	msg->time_struct = *localtime(&msg_time);
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
 	msgrcv(client_qid, msg, sizeof(msg_buff), 0, 0);
@@ -50,28 +54,34 @@ void handle_list() {
 }
 
 void handle_2all(char* message) {
+	time_t msg_time = time(NULL);
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	msg->mtype = TALL;
 	msg->client_id = client_idx;
+	msg->time_struct = *localtime(&msg_time);
 	strcpy(msg->content, message);
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
 }
 
 void handle_2one(char* message, int c_pid) {
+	time_t msg_time = time(NULL);
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	msg->mtype = TONE;
 	msg->client_id = client_idx;
 	msg->catcher_pid = c_pid;
+	msg->time_struct = *localtime(&msg_time);
 	strcpy(msg->content, message);
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
 }
 
 void handle_stop() {
+	time_t msg_time = time(NULL);
 	msg_buff *msg = malloc(sizeof(msg_buff));
 	msg->mtype = STOP;
 	msg->client_id = client_idx;
+	msg->time_struct = *localtime(&msg_time);
 
 	msgsnd(server_q, msg, sizeof(msg_buff), 0);
 	msgctl(client_qid, IPC_RMID, NULL);
@@ -88,7 +98,11 @@ void handle_server_message() {
 		handle_stop();
 	}
 	else if (msg_rcv->mtype == TALL || msg_rcv->mtype == TONE) {
-		printf("\n>>> MESSAGE FROM [%d]: \"%s\"\n",
+		struct tm msg_time = msg_rcv->time_struct;
+		printf("\n[%02d:%02d:%02d] [%d]: \"%s\"\n",
+			msg_time.tm_hour,
+			msg_time.tm_min,
+			msg_time.tm_sec,
         	msg_rcv->client_id,
         	msg_rcv->content);
 		waiting = 0;
@@ -161,10 +175,8 @@ int main() {
 			printf("SERVER | msg was sent\n");
 		}
 		else if (strcmp(command, "2ONE") == 0) {
-			int c_pid;
-			printf("Enter recipient pid:\n> ");
-			scanf("%d", &c_pid);
-
+			command = strtok(NULL, " ");
+			int c_pid = atoi(command);
 			command = strtok(NULL, " ");
 			char* message = command;
 			handle_2one(message, c_pid);

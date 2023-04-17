@@ -25,6 +25,7 @@ typedef struct msg_buff {
 	int catcher_pid;
 	key_t q_key;
 	char content[MAX_MSG_LEN];
+	struct tm time_struct;
 } msg_buff;
 
 typedef enum mtype {
