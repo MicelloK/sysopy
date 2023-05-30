@@ -1,0 +1,127 @@
+#include "utils.h"
+
+char* client_name;
+short socket_mode;
+int server_socket_fd = -1;
+
+char* serrver_IP_addres;
+in_port_t server_port_number;
+char* server_unix_socket_path;
+
+void signal_handler(int signum) {
+    printf("Signal %d received, leaving..\n", signum);
+    exit(EXIT_SUCCESS);
+}
+
+void connect_to_server() {
+    if (socket_mode == INET_MODE) {
+        struct sockaddr_in server_address;
+        server_address.sin_family = AF_INET;
+        server_address.sin_addr.s_addr = inet_addr(serrver_IP_addres);
+        server_address.sin_port = htons(server_port_number);
+
+        if ((server_socket_fd = socket(AF_INET, SOCKET_PROTOCOL, 0)) == -1) {
+            perror("socket");
+            exit(EXIT_FAILURE);
+        }
+
+        if (connect(server_socket_fd, (struct sockaddr*) &server_address, sizeof(server_address)) == -1) {
+            perror("connect");
+            exit(EXIT_FAILURE);
+        }
+    } 
+    else {
+        struct sockaddr_un server_address;
+        server_address.sun_family = AF_UNIX;
+        strcpy(server_address.sun_path, server_unix_socket_path);
+
+        if ((server_socket_fd = socket(AF_UNIX, SOCKET_PROTOCOL, 0)) == -1) {
+            perror("socket");
+            exit(EXIT_FAILURE);
+        }
+
+        if (connect(server_socket_fd, (struct sockaddr*) &server_address, sizeof(server_address)) == -1) {
+            perror("connect");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+void process_message() {
+    char msg[MSG_SIZE];
+    read(server_socket_fd, msg, MSG_SIZE);
+    printf("%s\n", msg);
+}
+
+int main(int argc, char** argv) {
+    struct sigaction action;
+	action.sa_handler = signal_handler;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	sigaction(SIGINT, &action, NULL);
+
+    if (argc < 4) {
+        printf("Wrong number of arguments\n");
+        exit(EXIT_FAILURE);
+    }
+
+    client_name = argv[1];
+
+    if (strcmp(argv[2], "INET") == 0 || strcmp(argv[2], "inet") == 0) {
+        if (argc != 5) {
+            printf("Wrong number of arguments\n");
+            exit(EXIT_FAILURE);
+        }
+        socket_mode = INET_MODE;
+        serrver_IP_addres = argv[3];
+        server_port_number = (in_port_t) atoi(argv[4]);
+    } 
+    else if (strcmp(argv[2], "UNIX") == 0 || strcmp(argv[2], "unix") == 0) {
+        socket_mode = UNIX_MODE;
+        server_unix_socket_path = argv[3];
+    }
+    else {
+        printf("Wrong socket mode\n");
+        exit(EXIT_FAILURE);
+    }
+
+    connect_to_server();
+
+    char msg[MSG_SIZE];
+    read(server_socket_fd, msg, MSG_SIZE);
+    
+    if (strcmp(msg, "OK") == 0) {
+        printf("Connected to server\n");
+    }
+    else {
+        printf("Error while connecting to server\n");
+        printf("%s\n", msg);
+        exit(EXIT_FAILURE);
+    }
+
+    //login msg
+
+    char login_msg[MSG_SIZE];
+    sprintf(login_msg, "%d %s", REGISTER, client_name);
+    printf("%s\n", login_msg);
+    write(server_socket_fd, login_msg, MSG_SIZE);
+
+    read(server_socket_fd, msg, MSG_SIZE);
+    if (strcmp(msg, "OK") == 0) {
+        printf("Logged in\n");
+    }
+    else {
+        printf("Error while logging in\n");
+        exit(EXIT_FAILURE);
+    }
+
+    //main loop
+    while(1) {
+        process_message();
+    }
+
+    return 0;
+}
+
+
+
