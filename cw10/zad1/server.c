@@ -70,6 +70,7 @@ void close_server() {
 
 void signal_handler(int signum) {
 	printf("SIGINT received, leaving..\n");
+	close_server();
 	exit(EXIT_SUCCESS);
 }
 
@@ -169,7 +170,7 @@ void remove_client(int socket_fd, int lock) {
 		if (clients[i].socket_fd == socket_fd) {
 			if (clients[i].registered) {
 				printf("[SERVER] Client %s disconnected\n", clients[i].name);
-				send_message(socket_fd, "DISCONECTED\n");
+				// send_message(socket_fd, "DISCONECTED\n");
 			}
 			clients[i].socket_fd = -1;
 			clients[i].registered = 0;
@@ -186,6 +187,7 @@ void remove_client(int socket_fd, int lock) {
 }
 
 void process_message(int socket, char* msg) {
+	printf("AA: %s\n", msg);
 	int type;
 	char* content = "";
 
@@ -193,7 +195,7 @@ void process_message(int socket, char* msg) {
 	char* token = strtok(msg_tmp, " ");
 	if (token != NULL) {
 		type = atoi(token);
-		token = strtok(NULL, "\n");
+		token = strtok(NULL, "");
 		if (token != NULL) {
 			content = token;
 		}
@@ -204,18 +206,20 @@ void process_message(int socket, char* msg) {
 		send_message(socket, "OK");
 	}
 	else if(type == PING) {
-		int socket_fd = atoi(content);
-		clients[socket_fd].active = 1;
+		for (int i = 0; i < SERVER_CLIENT_LIMIT; i++) {
+			if (clients[i].socket_fd == socket) {
+				clients[i].active = 1;
+				break;
+			}
+		}
 	}
 	else if(type == LIST) {
-		char* list = "";
+		char list[MSG_SIZE] = "2 ";
 		for(int i = 0; i < SERVER_CLIENT_LIMIT; i++) {
 			if (clients[i].registered) {
-				char* client = malloc(100);
-				sprintf(client, "%d %s\n", clients[i].id, clients[i].name);
-				list = realloc(list, strlen(list) + strlen(client) + 1);
+				char client[MSG_SIZE];
+				sprintf(client, "ID: %d %s\n", clients[i].id, clients[i].name);
 				strcat(list, client);
-				free(client);
 			}
 		}
 		send_message(socket, list);
@@ -231,17 +235,21 @@ void process_message(int socket, char* msg) {
 				content = token;
 			}
 		}
-		free(msg_tmp);
 		if (!clients[catcher_id].registered) {
 			printf("[SERVER] Client %d is not registered\n", catcher_id);
-			char *msg = "Client is not registered\n";
-			send_message(socket, msg);
+			msg_tmp = "3 Client is not registered\n";
+			send_message(socket, msg_tmp);
 			return;
 		}
 		send_message(clients[catcher_id].socket_fd, content);
+		char* msg_sent = "3 TALL msg was sent\n";
+		printf("AAAAAA: %s, %s\n", content, msg_sent);
+		send_message(socket, msg_sent);
 	}
 	else if(type == TALL) {
-		send_message_to_all(socket, content);
+		char all_msg[MSG_SIZE] = "3 ";
+		strcat(all_msg, content);
+		send_message_to_all(socket, all_msg);
 	}
 	else if(type == STOP) {
 		remove_client(socket, 1);
@@ -345,7 +353,7 @@ void* ping_manager(void* arg) {
 		for (int i =  0; i < SERVER_CLIENT_LIMIT; i++) {
 			if (clients[i].registered) {
 				clients[i].active = 0;
-				send_message(clients[i].socket_fd, "PING");
+				send_message(clients[i].socket_fd, "1 PING");
 			}
 		}
 
@@ -355,9 +363,8 @@ void* ping_manager(void* arg) {
 
 		pthread_mutex_lock(&mutex);
 
-		for (int i =  0; i < SERVER_CLIENT_LIMIT; i++) {
+		for (int i = 0; i < SERVER_CLIENT_LIMIT; i++) {
 			if (clients[i].registered && !clients[i].active) {
-				// printf("[SERVER] Client %s inactive\n", clients[i].name);
 				remove_client(clients[i].socket_fd, 0);
 			}
 		}

@@ -1,8 +1,13 @@
 #include "utils.h"
 
+void* input_handler(void* arg);
+void* connection_handler(void* arg);
+
 char* client_name;
 short socket_mode;
 int server_socket_fd = -1;
+
+int wait = 0;
 
 char* serrver_IP_addres;
 in_port_t server_port_number;
@@ -50,7 +55,34 @@ void connect_to_server() {
 void process_message() {
     char msg[MSG_SIZE];
     read(server_socket_fd, msg, MSG_SIZE);
-    printf("%s\n", msg);
+    int type;
+	char* content = "";
+    // printf("Q%sQ\n", msg);
+
+	char* msg_tmp = strdup(msg);
+	char* token = strtok(msg_tmp, " ");
+	if (token != NULL) {
+		type = atoi(token);
+		token = strtok(NULL, "");
+		if (token != NULL) {
+			content = token;
+		}
+	}
+
+    if (type == PING) {
+        write(server_socket_fd, "1", 1); //ping
+    }
+    else if (type == STOP) {
+        exit(EXIT_SUCCESS);
+    }
+    else if (type == TONE || type == TALL || type == LIST) {
+        printf("%s\n", content);
+        wait = 0;
+    }
+    else {
+        printf("Unknown message type\n");
+        wait = 0;
+    }
 }
 
 int main(int argc, char** argv) {
@@ -95,7 +127,6 @@ int main(int argc, char** argv) {
     }
     else {
         printf("Error while connecting to server\n");
-        printf("%s\n", msg);
         exit(EXIT_FAILURE);
     }
 
@@ -103,7 +134,6 @@ int main(int argc, char** argv) {
 
     char login_msg[MSG_SIZE];
     sprintf(login_msg, "%d %s", REGISTER, client_name);
-    printf("%s\n", login_msg);
     write(server_socket_fd, login_msg, MSG_SIZE);
 
     read(server_socket_fd, msg, MSG_SIZE);
@@ -115,12 +145,62 @@ int main(int argc, char** argv) {
         exit(EXIT_FAILURE);
     }
 
-    //main loop
+    pthread_t connection_thd, input_thd;
+    pthread_create(&connection_thd, NULL, connection_handler, NULL);
+    pthread_create(&input_thd, NULL, input_handler, NULL);
+
+    pthread_join(connection_thd, NULL);
+    pthread_join(input_thd, NULL);
+
+    return 0;
+}
+
+void* connection_handler(void* arg) {
     while(1) {
         process_message();
     }
+}
 
-    return 0;
+void* input_handler(void* arg) {
+    while(1) {
+        if (!wait) {
+            printf("> ");
+            wait = 1;
+        }
+        char* line = NULL;
+        size_t len = 0;
+        getline(&line, &len, stdin);
+        if (strcmp(line, "\n") == 0) {
+            wait = 0;
+            continue;
+        }
+        char* line_tmp = strdup(line);
+        char* command = strtok(line_tmp, " ");
+
+        if (strcmp(command, "LIST\n") == 0 || strcmp(command, "LIST") == 0) {
+            write(server_socket_fd, "2", 1); //list
+        }
+        else if (strcmp(command, "TALL") == 0) {
+            command = strtok(NULL, " ");
+			char message[MSG_SIZE] = "3 ";
+            strcat(message, command);
+            write(server_socket_fd, message, strlen(message)+1); //tall
+        }
+        else if (strcmp(command, "TONE") == 0) {
+            command = strtok(NULL, " ");
+            char message[MSG_SIZE] = "4 ";
+            strcat(message, command);
+            write(server_socket_fd, message, strlen(message)+1); //tone
+        }
+        else if (strcmp(command, "STOP\n") == 0 || strcmp(command, "STOP") == 0) {
+            write(server_socket_fd, "5", 1); //stop
+            exit(EXIT_SUCCESS);
+        }
+        else {
+            printf("Unknown command\n");
+            wait = 0;
+        }
+    }
 }
 
 
