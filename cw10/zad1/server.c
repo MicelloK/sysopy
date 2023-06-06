@@ -118,6 +118,7 @@ int main(int argc, char** argv) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 void send_message(int socket_fd, char* message) {
+	printf("[SERVER] Sending message: %s, to: %d\n", message, socket_fd);
 	if (write(socket_fd, message, strlen(message)) == -1) {
 		perror("write");
 		exit(EXIT_FAILURE);
@@ -187,9 +188,17 @@ void remove_client(int socket_fd, int lock) {
 }
 
 void process_message(int socket, char* msg) {
-	printf("AA: %s\n", msg);
+	printf("[SERVER] Received: %s, from %d\n", msg, socket);
 	int type;
 	char* content = "";
+
+	int client_id = -1;
+	for (int i = 0; i < SERVER_CLIENT_LIMIT; i++) {
+		if (clients[i].registered && clients[i].socket_fd == socket) {
+			client_id = i;
+			break;
+		}
+	}
 
 	char* msg_tmp = strdup(msg);
 	char* token = strtok(msg_tmp, " ");
@@ -204,6 +213,9 @@ void process_message(int socket, char* msg) {
 	if(type == REGISTER) {
 		register_client(socket, content);
 		send_message(socket, "OK");
+		char new_client[MSG_SIZE];
+		sprintf(new_client, "4 [SERVER] '%s' joined\n", content);
+		send_message_to_all(socket, new_client);
 	}
 	else if(type == PING) {
 		for (int i = 0; i < SERVER_CLIENT_LIMIT; i++) {
@@ -230,7 +242,7 @@ void process_message(int socket, char* msg) {
 		char* token = strtok(msg_tmp, " ");
 		if (token != NULL) {
 			catcher_id = atoi(token);
-			token = strtok(NULL, "\n");
+			token = strtok(NULL, "\0");
 			if (token != NULL) {
 				content = token;
 			}
@@ -241,14 +253,13 @@ void process_message(int socket, char* msg) {
 			send_message(socket, msg_tmp);
 			return;
 		}
-		send_message(clients[catcher_id].socket_fd, content);
-		char* msg_sent = "3 TALL msg was sent\n";
-		printf("AAAAAA: %s, %s\n", content, msg_sent);
-		send_message(socket, msg_sent);
+		char one_msg[MSG_SIZE];
+		snprintf(one_msg, MSG_SIZE, "3 [PRIVATE] %s: %s", clients[client_id].name, content);
+		send_message(clients[catcher_id].socket_fd, one_msg);
 	}
 	else if(type == TALL) {
-		char all_msg[MSG_SIZE] = "3 ";
-		strcat(all_msg, content);
+		char all_msg[MSG_SIZE];
+		snprintf(all_msg, MSG_SIZE, "4 [ALL] %s: %s", clients[client_id].name, content);
 		send_message_to_all(socket, all_msg);
 	}
 	else if(type == STOP) {
@@ -259,6 +270,7 @@ void process_message(int socket, char* msg) {
 	}
 
 	free(msg_tmp);
+	memset(msg, 0, MSG_SIZE);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
